@@ -1,0 +1,146 @@
+\documentclass[a4paper,12pt]{report}
+
+% Packages
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{geometry}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+\usepackage{titlesec}  % For title formatting
+\usepackage{hyperref}
+
+\usepackage{lipsum}
+\usepackage[Lenny]{fncychap}
+\ChNameUpperCase
+\ChNumVar{\fontsize{40}{42}\usefont{OT1}{ptm}{m}{n}\selectfont}
+\ChTitleVar{\Large\sc}
+
+\geometry{margin=1in}
+\setstretch{1.5}
+
+
+% Header and Footer
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{OverseerAI}
+\fancyhead[R]{\thepage}
+
+% Title Formatting
+\titleformat{\section}{\normalfont\Large\bfseries}{\thesection}{1em}{}
+
+
+% Cover Page
+\title{
+    \includegraphics[width=0.55\textwidth]{images/logo.png}
+    \vspace{3cm} % Adjust vertical space after the logo
+    
+    \textbf{\Huge OverseerAI} \\
+    \vspace{1cm} % Adjust vertical space
+    \large Corso di Fondamenti di Intelligenza Artificiale \\
+    \vspace{0.5cm} % Adjust vertical space
+    \small \textit{Gennaio 2025} \\
+    \vspace{3cm}
+    \textbf{Created by: }{\large Antonio Maiorano [0512117170] \usefont{OT1}{ptm}{m}{n}\selectfont} \\
+    \vspace{0.5cm}
+    \textbf{Supervised by: }{\large Prof. Fabio Palomba}
+}
+\date{}
+
+\tolerance=1
+\emergencystretch=\maxdimen
+\hyphenpenalty=10000
+\hbadness=10000
+
+\begin{document}
+
+% Title Page
+\maketitle
+\thispagestyle{empty}
+\newpage
+
+% Table of Contents
+\renewcommand*\contentsname{\hfill Indice \hfill}
+% Start page numbering from the Table of Contents
+\setcounter{page}{1}  % Start counting from 1
+\tableofcontents
+\newpage
+
+\begingroup%
+\makeatletter%
+\let\clearpage\relax% Stop LaTeX from going to a new page; and
+\vspace*{\fill}%
+\vspace*{\dimexpr-50\p@-\baselineskip}% Remove the initial (default) 50pt gap (plus 1 line)
+\chapter{Definizione del problema}
+\vspace*{\fill}%
+\endgroup
+\newpage
+
+
+\section{Introduzione}
+YouTube è una delle piattaforme di condivisione video più utilizzate al mondo. Tuttavia, con l'aumento dei contenuti, sono cresciuti anche i tentativi di truffa, certe volte mascherati con il metodo "\textit{fare tanto, dando poco}".\\
+Per semplicità di analisi, i contenuti "truffa" sono una generalizzazione di tutti quei contenuti che portano l'utente finale a consumare contenuti che sono descritti in modo fuorviante e/o sbagliato, si includono dunque i contenuti che reindirizzano ad altri contenuti esterni alla piattaforma per lo stesso obiettivo.\\
+Queste problematiche sono ora piu' presenti che mai a causa della rapida crescita della presenza online dei contenuti AI-Made (le cosiddette "Money Farm") e pubblicità sponsorizzate da individui singoli con intenzioni a volte poco chiare.
+
+\section{Obiettivi}
+L'obiettivo principale di questo progetto è quello di evitare il piu' possibile un contatto diretto con questi contenuti-truffa creando un modello di Machine Learning in grado di classificare i titoli dei video.\\
+Molte volte i video possono presentare titoli ambigui che hanno la forma di uno delle due categorie, ma il contenuto poi risulta essere l'esatto opposto.\\
+Riconoscere anche il contenuto è ben oltre l'obiettivo del progetto, che si soffermerà solo sull'analisi dei titoli.\\
+Il modello finale dovrebbe essere in grado di classificare i titoli in modo corretto per le due categorie:
+\begin{itemize}
+    \item \textbf{Scam}: Titoli ingannevoli o truffaldini;
+    \item \textbf{Legit}: Titoli autentici e affidabili.
+\end{itemize}
+
+\newpage
+
+\section{Metodologia}
+La valutazione della metodologia di approccio al problema in analisi è stata fatta tra i modelli di Ingegneria del Machine Learning \textbf{CRISP-DM} e \textbf{TDSP}, dove è stato scelto il primo, data la non necessità di suddivisioni e validazioni temporali del progetto presenti nel secondo.
+
+\subsection{CRISP-DM}
+Le fasi che verranno percorse sono:
+\begin{enumerate}
+    \item Business Understanding
+    \item Data Understanding
+    \item Data Preparation
+    \item Data Modeling
+    \item Evaluation
+\end{enumerate}
+
+\newpage
+
+\begingroup%
+\makeatletter%
+\let\clearpage\relax% Stop LaTeX from going to a new page; and
+\vspace*{\fill}%
+\vspace*{\dimexpr-50\p@-\baselineskip}% Remove the initial (default) 50pt gap (plus 1 line)
+\chapter{Business Understanding}
+\vspace*{\fill}%
+\endgroup
+\newpage
+
+\section{Determinazione gli Obiettivi di Business}
+Il primo passo per la creazione di OverseerAI, è capire cosa esso deve essere, come deve esserlo e come esso deve arrivare ad essere cio' che è stato descritto di esso.
+\subsection{Background}
+Esistono molti sistemi di "Auto-Flagging", o di Moderazione automatica, YouTube stesso ne ha almeno uno!\\
+...Il problema è che i contenuti moderati sono solo quelli degli utenti, ad esempio le pubblicità non sono moderate, per qualche ragione di Business di Google.\\
+Un sistema esistente (e dignitosamente più funzionante dell'esempio appena esplicitato) da cui OverseerAI potrebbe prendere spunto:
+\begin{itemize}
+    \item \textbf{La moderazione automatica del social media TikTok}
+\end{itemize}
+Il suddetto sistema funziona sulla base di un algoritmo (Closed-Source) che modera i contenuti in modo automatico basandosi su similarità con i contenuti di allenamento, che, nel caso di TikTok, possono essere Hashtags riconosciuti come pericolosi (la ricerca sulla piattaforma di tali Hashtags porta zero risultati), oppure delle parole presenti nella descrizione che sono anche essere già conosciute come pericolose.\\
+
+\subsection{Obiettivi}
+Basandoci sulle informazioni raccolte, OverseerAI dovrà analizzare i contenuti di YouTube, in particolare i loro titoli. Assieme ad essi si potrebbe analizzare la presenza di link all'interno della descrizione, che sono la maggior parte delle volte usati per truffare e rubare dati alle persone ignare.\\
+Ovviamente quest'ultimo puo' facilmente essere un falso positivo, in quanto ci sono anche canali leciti che usano i link per aiutare le persone a connettere con loro attraverso altri social media.
+
+\newpage
+\subsection{Criteri di successo}
+Gli obiettivi, non per ordine di importanza, di OverseerAI dunque sono:
+\begin{itemize}
+    \item \textbf{Un corretto riconoscimento dei contenuti intenzionati a truffare}
+    \item \textbf{Un corretta classificazione dei contenuti normali come leciti}
+    \item \textbf{Evitare di creare bias con chi ha link nei propri contenuti}
+\end{itemize}
+Ovviamente, assieme ad essi, c'è anche il criterio di aver sventato delle truffe!
+
+\end{document}
