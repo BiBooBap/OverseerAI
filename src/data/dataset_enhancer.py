@@ -20,53 +20,43 @@ def add_features(df):
     df['dislikes'] = np.random.randint(0, 10001, df.shape[0])
     # Crea nuove colonne con valori casuali tra 0 e 10000
     df['comments'] = np.random.randint(0, 10001, df.shape[0])
-    
+
+    return df
+
+# Introduzione di Rumore nel dataset.
+def add_noise(df):
+    def corrupt_title(title):
+        # Se il titolo è già mancante, non fare nulla.
+        if pd.isnull(title):
+            return title
+
+        # Lista dei "metodi di corruzione".
+        noise_methods = [
+            lambda x: ''.join(random.choice(string.ascii_letters + string.digits + string.punctuation) for _ in range(len(x))),  # Sostituzione di caratteri con caratteri casuali
+            lambda x: x + ''.join(random.choices(string.punctuation, k=5)),  # Aggiunta di caratteri speciali
+            lambda x: ''.join(random.sample(x, len(x))),  # Mescolamento dei caratteri
+            lambda x: '###ERROR###'  # Testo generico di errore
+        ]
+
+        # Applica un metodo di corruzione casuale.
+        return random.choice(noise_methods)(title)
+
+    # Introduci rumore nel 10% dei titoli del dataset.
+    noise_indices = df.sample(frac=0.03).index
+    df.loc[noise_indices, 'title'] = df.loc[noise_indices, 'title'].apply(corrupt_title)
+
     # Introduzione di valori mancanti
-    for col in ['upload_hour', 'likes', 'comments']:
+    for col in ['upload_hour', 'likes', 'dislikes', 'comments']:
         # Estrae casualmente il 10% delle righe e per ognuna imposta i valori delle colonne esplicitate a "NaN".
-        df.loc[df.sample(frac=0.1).index, col] = np.nan
-    
-    # Introduzione di rumore, valori anomali in questo caso. Le righe selezionate sono il 5% del dataset.
+        df.loc[df.sample(frac=0.05).index, col] = np.nan
+
+    # Introduzione di valori anomali. Le righe selezionate sono il 5% del dataset.
     noise_indices = df.sample(frac=0.05).index
     # Per ogni riga selezionata, imposta i valori delle colonne "likes" e "dislikes" a valori casuali tra 1000000 e 10000000 e tra 500000 e 1000000
     # rispettivamente. La quantita' di numeri generati corrisponde al numero di indici selezionati (`len(noise_indices)`)
     df.loc[noise_indices, 'likes'] = np.random.randint(1000000, 10000000, len(noise_indices))
     df.loc[noise_indices, 'dislikes'] = np.random.randint(500000, 1000000, len(noise_indices))
-    
-    return df
 
-# Introduzione di Rumore nei Titoli
-def add_noise_to_titles(df):
-    def corrupt_title(title):
-        # Se il titolo è già mancante, non fare nulla
-        if pd.isnull(title):
-            return title
-        
-        # Lista dei "metodi di corruzione"
-        noise_methods = [
-            lambda x: ''.join(random.choice(string.ascii_letters + string.digits + string.punctuation) for _ in range(len(x))),  # Titolo casuale
-            lambda x: x + ''.join(random.choices(string.punctuation, k=5)),  # Aggiunta di caratteri speciali
-            lambda x: ''.join(random.sample(x, len(x))),  # Mescolamento dei caratteri
-            lambda x: '###ERROR###'  # Testo generico di errore
-        ]
-        
-        # Applica un metodo di corruzione casuale
-        return random.choice(noise_methods)(title)
-    
-    # Introduci rumore nel 10% dei titoli
-    noise_indices = df.sample(frac=0.1).index
-    df.loc[noise_indices, 'title'] = df.loc[noise_indices, 'title'].apply(corrupt_title)
-    
-    return df
-
-# Aggiunta di Link agli elementi del Dataset
-def add_links_to_titles(df):
-    # Aggiunta della colonna booleana
-    df['has_link'] = False
-    # Seleziona il 60% dei titoli e "aggiunge un link"
-    link_indices = df.sample(frac=0.6).index
-    df.loc[link_indices, 'has_link'] = True
-    
     return df
 
 # Salvataggio Dataset
@@ -78,22 +68,19 @@ def save_dataset(df, output_path):
 def main(input_path, output_path):
     print("Caricamento del dataset...")
     df = load_existing_dataset(input_path)
-    
+
     print("< Aggiunta di features e rumore nei dati numerici >")
     df = add_features(df)
-    
-    print("< Introduzione di rumore nei titoli >")
-    df = add_noise_to_titles(df)
 
-    print("< Aggiunta di link nei titoli >")
-    df = add_links_to_titles(df)
-    
+    print("< Introduzione di rumore nei titoli >")
+    df = add_noise(df)
+
     print("< Salvataggio del nuovo dataset >")
     save_dataset(df, output_path)
     print("< Processo completato con successo >")
 
 # Esecuzione diretta
 if __name__ == '__main__':
-    input_path = 'dataset_raw.csv'
-    output_path = 'dataset_enhanced.csv'
+    input_path = "dataset_raw.csv"
+    output_path = "dataset_enhanced.csv"
     main(input_path, output_path)
