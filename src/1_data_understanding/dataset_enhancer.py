@@ -81,6 +81,6 @@ def main(input_path, output_path):
 
 # Esecuzione diretta
 if __name__ == '__main__':
-    input_path = "dataset_raw.csv"
-    output_path = "dataset_enhanced.csv"
+    input_path = "../0_data/dataset_raw.csv"
+    output_path = "../0_data/dataset_enhanced.csv"
     main(input_path, output_path)
