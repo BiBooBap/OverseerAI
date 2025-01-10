@@ -58,26 +58,26 @@ def clean_dataset(df):
     plt.show()
     
     # Pulizia dei titoli.
-    def clean_title(title):
-        if pd.isnull(title) or '###ERROR###' in str(title):
+    def clean_text(text):
+        if pd.isnull(text) or '###ERROR###' in str(text):
             return "Title Not Available"
 
         # Rimuovi caratteri speciali indesiderati.
-        title = re.sub(r'[^\w\s]', '', str(title))
+        text = re.sub(r'[^\w\s]', '', str(text))
         # Rimuovi spazi multipli.
-        title = re.sub(r'\s+', ' ', title).strip()
+        text = re.sub(r'\s+', ' ', text).strip()
         
-        return title
+        return text
     
-    df['title'] = df['title'].apply(clean_title)
+    df['title'] = df['title'].apply(clean_text)
     
     # Rimuovi le righe con titoli completamente corrotti.
     df = df[df['title'] != "Title Not Available"]
 
-    def normalize_title(title):
+    def normalize_text(text):
         # Verifica che il titolo sia una stringa valida
-        if not isinstance(title, str):
-            print(f"Titolo non valido: {title}")
+        if not isinstance(text, str):
+            print(f"Titolo non valido: {text}")
             return None  # Indica che il titolo è invalido
 
         try:
@@ -89,10 +89,10 @@ def clean_dataset(df):
                 "don't": "do not", "didn't": "did not", "isn't": "is not",
             }
             for contraction, full_form in contractions.items():
-                title = re.sub(r'\b' + contraction + r'\b', full_form, title)
+                text = re.sub(r'\b' + contraction + r'\b', full_form, text)
 
             # 2. Tokenizzazione
-            tokens = word_tokenize(title)
+            tokens = word_tokenize(text)
 
             # 3. Conversione dei numeri in parole
             tokens = [
@@ -110,22 +110,43 @@ def clean_dataset(df):
             tokens = [word for word in tokens if word not in stop_words]
 
             # Ricostruisce il titolo normalizzato
-            normalized_title = ' '.join(tokens)
+            normalized_text = ' '.join(tokens)
 
             # Verifica che il titolo normalizzato non sia vuoto
-            return normalized_title if normalized_title.strip() else None
+            return normalized_text if normalized_text.strip() else None
         except Exception as e:
-            print(f"Errore durante la normalizzazione del titolo: {title}. Errore: {e}")
+            print(f"Errore durante la normalizzazione del titolo: {text}. Errore: {e}")
             return None
         
-    df['title'] = df['title'].apply(normalize_title)
+    df['title'] = df['title'].apply(normalize_text)
 
-    def process_description(description):
-    # Cerca un link nella descrizione
-        link = re.search(r'http[s]?://\S+', description)
-        return link.group() if link else "No link available"
-    
-    df['description'] = df['description'].apply(process_description)
+    def description_case(desc):
+        if pd.isnull(desc):
+            return None
+
+        # Individua eventuali link, mantenendoli intatti
+        link_pattern = r'(http[s]?://\S+)'
+        match = re.search(link_pattern, desc)
+        link = match.group(1) if match else ''
+
+        # Rimuove il link dal testo per il processo di pulizia
+        text_part = re.sub(link_pattern, '', desc).strip()
+
+        # Applica clean_text
+        cleaned_text = clean_text(text_part)
+
+        # Applica normalize_text
+        normalized_text = normalize_text(cleaned_text) if cleaned_text else None
+
+        # Ricostruisce la descrizione con testo + link intatto
+        final_description = (normalized_text or '').strip()
+        if link:
+            final_description = (final_description + ' ' + link).strip()
+
+        return final_description
+
+    # Applica clean_description alla colonna "description"
+    df['description'] = df['description'].apply(description_case)
     
     # Verifica finale del processo di pulizia.
     df.reset_index(drop=True, inplace=True)

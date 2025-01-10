@@ -1,6 +1,7 @@
 import data_cleaning
 import feature_selection
 import feature_scaling
+import data_balancing
 import pandas as pd
 
 if __name__ == "__main__":
@@ -18,7 +19,7 @@ if __name__ == "__main__":
     
     # Carica il dataset
     print("2. Caricamento dataset con Data Clean...")
-    dataset_path = "../0_data/dataset_clean.csv"  # Modifica con il tuo percorso del file
+    dataset_path = "../0_data/dataset_clean.csv"
     df = pd.read_csv(dataset_path)
     
     # Applica la normalizzazione del testo
@@ -29,13 +30,24 @@ if __name__ == "__main__":
     scaled_df.to_csv('../0_data/dataset_scaling.csv', index=False)
     print("2. Dataset con Feature Scaling salvato con successo!")
     
-    ''' Carica il dataset
+    # Carica il dataset
     print("3. Caricamento dataset con Feature Scaling...")
     dataset_path = "../0_data/dataset_scaling.csv"
     df = pd.read_csv(dataset_path)
     
-    # Esegui il data scaling
-    
+    # Esegui il Feature Selection
+    selection_df = feature_selection.feature_selection(df)
+
     # Salva il dataset
-    cleaned_df.to_csv("../0_data/dataset_select.csv", index=False)
-    print("3. Dataset con Feature Selection salvato con successo!") '''
+    selection_df.to_csv("../0_data/dataset_select.csv", index=False)
+    print("3. Dataset con Feature Selection salvato con successo!")
+
+    # Carica il dataset
+    print("4. Caricamento dataset con Feature Selection...")
+    dataset_path = "../0_data/dataset_select.csv"
+    df = pd.read_csv(dataset_path)
+    
+    # Visualizza la distribuzione delle etichette
+    data_balancing.plot_label_counts(df)
+
+    print("4. Data Balancing phase visualizzata!")

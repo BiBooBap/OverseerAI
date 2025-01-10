@@ -191,7 +191,8 @@ Le fasi che verranno percorse sono:
 \newpage
 
 \section{Determinare gli Obiettivi di Business}
-Il primo passo per la creazione di OverseerAI, è capire cosa esso deve essere, come deve esserlo e come esso deve arrivare ad essere cio' che è stato descritto di esso.
+Il primo passo per la creazione di OverseerAI, è capire cosa esso deve essere, come deve esserlo e come esso deve arrivare ad essere cio' che è stato descritto di esso.\\
+Partendo dalla radice: il problema in analisi è un problema di classificazione, come vedremo più avanti esso è nello specifico di \textbf{classificazione binaria}.
 \subsection{Background}
 Esistono molti sistemi di "Auto-Flagging", o di Moderazione automatica, YouTube stesso ne ha almeno uno!\\
 ...Il problema è che i contenuti moderati sono solo quelli degli utenti, ad esempio le pubblicità non sono moderate, per qualche ragione di Business di Google.\\
@@ -200,8 +201,7 @@ Un sistema esistente (e dignitosamente più funzionante dell'esempio appena espl
     \item \textbf{La moderazione automatica del social media TikTok} 
 \end{itemize}
 Il suddetto sistema funziona sulla base di un algoritmo (Closed-Source) che modera i contenuti in modo automatico basandosi su similarità con i contenuti di allenamento, che, nel caso di TikTok, possono essere Hashtags riconosciuti come pericolosi (la ricerca sulla piattaforma di tali Hashtags porta zero risultati), oppure delle parole presenti nella descrizione che sono anche essere già conosciute come pericolose.\\
-Con grande probabilità esso utilizza anche un algoritmo per l'analisi dei contenuti.\\
-A prescindere dall'algoritmo, TikTok blocca i contenuti ben prima che siano caricati, e nel caso dei contenuti sponsorizzati, essi vengono controllati allo stesso modo dei contenuti degli utenti normali.
+Con grande probabilità esso utilizza anche un algoritmo per l'analisi dei contenuti.
 
 \subsection{Obiettivi di Business}
 Basandoci sulle informazioni raccolte, OverseerAI dovrà analizzare TUTTI i contenuti di YouTube, in particolare i loro titoli. Assieme ad essi si potrebbe analizzare la presenza di link all'interno della descrizione, che sono la maggior parte delle volte usati per truffare e rubare dati alle persone ignare.\\
@@ -416,13 +416,12 @@ def clean_dataset(df):
 \end{lstlisting}
 \subsection{Valori testuali}
 Le successive features soggette al processo di pulizia sono le feature testuali, ovvero \texttt{\color{red}{title}} e \texttt{\color{red}{description}}.\\
-In esse abbiamo 5 problematiche principali:
+In esse abbiamo 4 problematiche principali:
 \begin{itemize}
         \item La presenza di valori di errore ("\#\#\#ERROR\#\#\#");
         \item La presenza di caratteri speciali;
-        \item Titolo non normalizzato;
-        \item La presenza di links (solo \texttt{\color{red}{description}});
-        \item La presenza di valori corrotti (solo \texttt{\color{red}{title}}).
+        \item Testo non normalizzato;
+        \item La presenza di valori corrotti rimanenti dopo i precedenti processi (solo \texttt{\color{red}{title}}).
 \end{itemize}
 La prima problematica (valori di errore) è risolvibile facilmente, eseguendo un parsing con le istanze che rispettano il criterio di eguaglianza con la stringa:
 \begin{lstlisting}[language=Python]
@@ -430,9 +429,11 @@ import # ...
 
 def clean_dataset(df):
     # ...
-    def clean_title(title):
-        if pd.isnull(title) or '###ERROR###' in str(title):
+    def clean_text(text):
+        if pd.isnull(text) or '###ERROR###' in str(text):
             return "Title Not Available"
+
+    df['title'] = df['title'].apply(clean_text)
 \end{lstlisting}
 
 La seconda problematica (caratteri speciali) è ancor piu' facile da risolvere, rimuovendo semplicemente i caratteri speciali utilizzando delle \textbf{Regular Expression}.
@@ -441,10 +442,14 @@ import # ...
 
 def clean_dataset(df):
     # ...
-    def clean_title(title):
+    def clean_text(text):
         # ...
-        title = re.sub(r'[^\w\s]', '', str(title))
-        title = re.sub(r'\s+', ' ', title).strip()
+        text = re.sub(r'[^\w\s]', '', str(text))
+        text = re.sub(r'\s+', ' ', text).strip()
+
+        return text
+
+    df['title'] = df['title'].apply(clean_text)
 \end{lstlisting}
 La prima REGEX serve a eliminare i caratteri speciali, la seconda elimina gli spazi quando ce ne sono più di uno.\\
 \\
@@ -454,14 +459,14 @@ import # ...
 
 def clean_dataset(df):
     # ...
-    def clean_title(title):
+    def clean_text(text):
         # ...
-        
+    
     df = df[df['title'] != "Title Not Available"]
 \end{lstlisting}
 \newpage
 
-La terza problematica (titolo non normalizzato) si può risolvere seguendo delle regole standard per la normalizzazione del testo. In questo caso sono state praticate:
+La terza problematica (testo non normalizzato) si può risolvere seguendo delle regole standard per la normalizzazione del testo. In questo caso sono state praticate, per entrambi titolo e descrizione:
 \begin{itemize}
         \item Contraction Expansion;
         \item Tokenizzazione;
@@ -475,9 +480,11 @@ import # ...
 
 def clean_dataset(df):
     # ...
-    def normalize_title(title):
-        if not isinstance(title, str):
-            print(f"Titolo non valido: {title}")
+    def clean_text(text):
+        # ...
+    def normalize_text(text):
+        if not isinstance(text, str):
+            print(f"Titolo non valido: {text}")
             return None
 
         try:
@@ -486,52 +493,173 @@ def clean_dataset(df):
                 "she's": "she is", "it's": "it is", "we're": "we are",
                 "they're": "they are", "can't": "cannot",
                 "won't": "will not", "don't": "do not",
-                "didn't": "did not","isn't": "is not",
+                "didn't": "did not", "isn't": "is not",
             }
             for contraction, full_form in contractions.items():
-                title=re.sub(r'\b'+contraction+r'\b',full_form,title)
+                text = re.sub(r'\b' + contraction + r'\b', full_form, text)
 
-            tokens = word_tokenize(title)
+            tokens = word_tokenize(text)
 
             tokens = [
                 num2words(word) if word.isdigit() else word
                 for word in tokens
             ]
 
-            tokens=[lemmatizer.lemmatize(word) for word in tokens if word]
+            tokens = [lemmatizer.lemmatize(word) for word in tokens if word]
 
             tokens = [word.lower() for word in tokens]
 
-            tokens=[word for word in tokens if word not in stop_words]
+            tokens = [word for word in tokens if word not in stop_words]
 
-            normalized_title = ' '.join(tokens)
+            normalized_text = ' '.join(tokens)
 
-            return normalized_title if normalized_title.strip() else None
+            return normalized_text if normalized_text.strip() else None
         except Exception as e:
-            print(f"Errore durante la normalizzazione del titolo: {title}. Errore: {e}")
+            print(f"Errore durante la normalizzazione del titolo: {text}. Errore: {e}")
             return None
+        
+    df['title'] = df['title'].apply(normalize_text)
 \end{lstlisting}
+\hfill \break
 Anche qui si controlla se il titolo risultante è vuoto, e nel caso si elimina la riga corrispondente.
 \\
 \\
-La quarta problematica (presenza di links in \texttt{\color{red}{description}}) è risolvibile anche essa usando una semplice Regular Expression.
-\\
-Essendo il link, inoltre, l'unico elemento del campo effettivamente rilevante, possiamo procedere ad estrarre solo esso dal valore attuale.
-\begin{lstlisting}[language=Python]
-import # ...
-
-def clean_dataset(df):
-    # ...
-    def process_description(description):
-        link = re.search(r'http[s]?://\S+', description)
-        return link.group() if link else "No link available"
-\end{lstlisting}
-\newpage
-La quinta problematica (valori corrotti) invece può essere risolta solo manualmente, non esiste un sistema automatico funzionante al 100\% in quanto i valori corrotti sono di natura totalmente casuale.\\
+La quarta problematica (valori corrotti) invece può essere risolta solo manualmente, non esiste un sistema automatico funzionante al 100\% in quanto i valori corrotti sono di natura totalmente casuale.\\
 Andiamo dunque a eliminare istanze del nuovo dataset risultato dalle precedenti operazioni che contengono valori corrotti. Dall'osservazione fatta, risultano essere i seguenti (elencati per titolo):
 \begin{itemize}
     \item "pqjjlbwwsupivcnmfi9i2m8jtdw"
     \item "son0mmgo6vr2rbo6ixhnjnvvem2r8qc"
 \end{itemize}
+\newpage
+Per quanto riguarda la descrizione, eseguiremo tutti i passaggi precedenti anche per essa, tenendo in conto che i link presenti non devono essere modificati, perderebbero senò di significato.
+\\
+\begin{lstlisting}[language=Python]
+import # ...
+
+def clean_dataset(df):
+    # ...
+    def clean_text(text):
+        # ...
+    def normalize_text(text):
+        # ...
+
+    def description_case(desc):
+        if pd.isnull(desc):
+            return None
+
+        link_pattern = r'(http[s]?://\S+)'
+        match = re.search(link_pattern, desc)
+        link = match.group(1) if match else ''
+
+        text_part = re.sub(link_pattern, '', desc).strip()
+
+        cleaned_text = clean_text(text_part)
+
+        normalized_text = normalize_text(cleaned_text) if cleaned_text else None
+
+        final_description = (normalized_text or '').strip()
+        if link:
+            final_description = (final_description + ' ' + link).strip()
+
+        return final_description
+
+    df['description'] = df['description'].apply(description_case)
+\end{lstlisting}
+\newpage
+
+\subsection{Feature Scaling}
+I valori numerici attuali hanno significato solo nella propria feature, ma se comparati con le altre avranno poco significato contestuale, e più di semplici numeri. Il modello assumerà che una feature sarà più importante di un'altra. Dunque, normalizziamo questi valori usando la \textbf{Min-Max Normalization}.\\
+\\
+\[
+    x' = a \space + \space \frac{(x \space - \space min(x)) \space \cdot \space (b \space - \space a)}{max(x) \space - \space min(x)}
+\]\\
+Dove \(x'\) è il valore da immettere al posto dell'attuale, risultato della formula, \(a = 0\), ovvero il minimo della nostra scala di normalizzazione, \(b = 1\), ovvero il massimo della nostra scala di normalizzazione.\\
+Per non rendere i valori difficili da analizzare, viene fatto anche un arrotondamento di due cifre decimali.\\
+\\
+L'unica eccezione di questo processo è la feature \texttt{\color{red}{upload\_hour}}, che ha un significato assoluto che verrebbe eliminato se i suoi valori venissero normalizzati. Dunque i suoi valori rimarranno gli stessi.\\
+\begin{lstlisting}[language=Python]
+def scale_column(df, column):
+    df[column] = (df[column] - df[column].min()) / (df[column].max() - df[column].min())
+    
+    df[column] = df[column].round(2)
+
+    return df
+\end{lstlisting}
+\newpage
+
+\subsection{Feature Selection}
+Dobbiamo ora analizzare le feature e capire se sono tutte utili alla risoluzione del problema, tenendo conto del dominio di quest'ultimo e delle conoscenze acquisite fin'ora su di esso.\\
+Sappiamo che i video truffaldini possono essere \textbf{sicuramente} riconosciuti tramite alcune parole chiave, utilizzate molto spesso per la loro facile attrazione (\href{https://www.eset.com/sg/about/newsroom/press-releases1/eset-blog/if-its-too-good-to-be-true-it-probably-is/}{\color{blue}{"Se qualcosa è troppo bello per essere vero, allora probabilmente lo è"}}).\\
+Dunque, le features \texttt{\color{red}{title}} e \texttt{\color{red}{description}} saranno essenziali alla risoluzione del problema.\\
+Volendo migliorare codesta soluzione, possiamo dividere la descrizione e il link, contenuto in essa, in due features diverse:
+\begin{itemize}
+    \item \texttt{\color{red}{description}}, che manterrà il contenuto (normalizzato) testuale della descrizione;
+    \item \texttt{\color{red}{link\_desc}}, che prenderà come valori "no link" in caso non sia presente un link, e la stringa del link nel caso essa sia invece presente.
+\end{itemize}
+\begin{lstlisting}[language=Python]
+import pandas as pd
+import re
+
+def feature_selection(df):
+    df_new = df.copy()
+
+    def extract_link(text):
+        if pd.isnull(text):
+            return "No link"
+        match = re.search(r'http[s]?://\S+', text)
+        return match.group() if match else "no link"
+
+    df_new['link_desc'] = df_new['description'].apply(extract_link)
+
+    def remove_link(text):
+        if pd.isnull(text):
+            return text
+        return re.sub(r'http[s]?://\S+', '', text).strip()
+
+    df_new['description'] = df_new['description'].apply(remove_link)
+\end{lstlisting}
+Ora, avendo una feature completamente diversa per il valore delle stringhe "link", possiamo pulire e normalizzare il testo, come già fatto per il processo di data cleaning del titolo, avendo ora, il valore, un contesto proprio.
+\hfill \break
+\begin{lstlisting}[language=Python]
+import # ...
+
+def feature_selection(df):
+    def extract_link(text):
+    # ...
+    def remove_link(text):
+    # ...
+    
+    def clean_link_desc(link):
+        if not isinstance(link, str) or not link:
+            return link
+        text = re.sub(r'[^\w\s]', ' ', link)
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text
+
+    df_new['link_desc'] = df_new['link_desc'].apply(clean_link_desc)
+\end{lstlisting}
+Per quanto riguarda le features con valori numerici, tramite un analisi del dominio si può facilmente capire che sono informazioni non utili alla risoluzione del problema, in quanto i valori stessi dipendono dalle interazioni che il pubblico ha con il suddetto contenuto, non dalla veridicità del contenuto.\\
+Eliminiamo dunque le features numeriche, avendo natura casuale e indipendente.
+\begin{lstlisting}[language=Python]
+import # ...
+def feature_selection(df):
+    def extract_link(text):
+    # ...
+    def remove_link(text):
+    # ...
+    def clean_link_desc(link):
+    # ...
+    df_new.drop(['upload_hour','likes','dislikes','comments'], axis=1, inplace=True)
+    return df_new
+\end{lstlisting}
+\newpage
+\subsection{Data Balancing}
+Il dataset, dopo una nemmeno troppo accurata analisi, risulta essere ben equilibrato, non ci sono carenze per nessuna delle due classi presenti nel problema.
+\hfill \break
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{data_balancing.png}
+\caption{Equilibrio delle istanze del dataset}
+\end{figure}
 
 \end{document}
