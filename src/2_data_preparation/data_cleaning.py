@@ -69,13 +69,7 @@ def clean_dataset(df):
         
         return title
     
-    def process_description(description):
-    # Cerca un link nella descrizione
-        link = re.search(r'http[s]?://\S+', description)
-        return link.group() if link else "No link available"
-    
     df['title'] = df['title'].apply(clean_title)
-    df['description'] = df['description'].apply(process_description)
     
     # Rimuovi le righe con titoli completamente corrotti.
     df = df[df['title'] != "Title Not Available"]
@@ -125,6 +119,13 @@ def clean_dataset(df):
             return None
         
     df['title'] = df['title'].apply(normalize_title)
+
+    def process_description(description):
+    # Cerca un link nella descrizione
+        link = re.search(r'http[s]?://\S+', description)
+        return link.group() if link else "No link available"
+    
+    df['description'] = df['description'].apply(process_description)
     
     # Verifica finale del processo di pulizia.
     df.reset_index(drop=True, inplace=True)
