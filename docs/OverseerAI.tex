@@ -343,8 +343,8 @@ Prima di passare dunque alla suddetta fase, il dataset deve essere pulito.\\
 Inoltre, i valori numerici potrebbero essere problematici in fase di training, in quanto risulta avere valori senza un contesto: un esempio semplice può essere \texttt{\color{red}{upload\_hour}} che è un valore numerico con un contesto specifico, ovvero quello delle ore in una giornata, e non ha dunque senso unicamente come numero e fuori contesto.\\
 Infine, i testi, nella forma attuale, devono essere normalizzati per avere una forma non ambigua e facilitare la fase di training.
 
-\subsection{Data cleaning}
-\subsubsection{Valori numerici}
+\section{Data cleaning}
+\subsection{Valori numerici}
 Le prime features del processo di pulizia sono \texttt{\color{red}{upload\_hour}}, \texttt{\color{red}{likes}}, \texttt{\color{red}{dislikes}} e \texttt{\color{red}{comments}}.\\
 In esse, abbiamo due problematiche principali:
 \begin{itemize}
@@ -356,7 +356,6 @@ La prima problematica si risolve con una semplice \textbf{Imputazione statistica
 import pandas as pd
 import re
 # ...NLP libraries
-
 def clean_dataset(df):
     def value_imputation(df, column):
         median_value = df[column].median()
@@ -393,9 +392,17 @@ Q_3 = \text{termine in posizione } \frac{3(n + 1)}{4}
 \begin{lstlisting}[language=Python]
 import pandas as pd
 import re
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+from nltk.tokenize import word_tokenize
+from spellchecker import SpellChecker
+from num2words import num2words
+
 def clean_dataset(df):
     # ...
-    Q1 = df[column].quantile(0.25)
+    def remove_anomalies(df, column):
+        Q1 = df[column].quantile(0.25)
         Q3 = df[column].quantile(0.75)
         IQR = Q3 - Q1
         lower_bound = Q1 - 1.5 * IQR
@@ -407,27 +414,19 @@ def clean_dataset(df):
     for col in ['likes', 'dislikes', 'comments']:
         df = remove_anomalies(df, col)
 \end{lstlisting}
-\subsubsection{Valori testuali}
+\subsection{Valori testuali}
 Le successive features soggette al processo di pulizia sono le feature testuali, ovvero \texttt{\color{red}{title}} e \texttt{\color{red}{description}}.\\
-In esse abbiamo 6 problematiche principali:
+In esse abbiamo 5 problematiche principali:
 \begin{itemize}
         \item La presenza di valori di errore ("\#\#\#ERROR\#\#\#");
-        \item La presenza di valori corrotti (caratteri casuali);
         \item La presenza di caratteri speciali;
-        \item La presenza di numeri;
-        \item La presenza di links (solo descrizione).
+        \item Titolo non normalizzato;
+        \item La presenza di links (solo \texttt{\color{red}{description}});
+        \item La presenza di valori corrotti (solo \texttt{\color{red}{title}}).
 \end{itemize}
-\newpage
-La prima problematica è risolvibile facilmente, eseguendo un parsing con le istanze che rispettano il criterio di eguaglianza con la stringa:
+La prima problematica (valori di errore) è risolvibile facilmente, eseguendo un parsing con le istanze che rispettano il criterio di eguaglianza con la stringa:
 \begin{lstlisting}[language=Python]
-import pandas as pd
-import re
-import nltk
-from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
-from nltk.tokenize import word_tokenize
-from spellchecker import SpellChecker
-from num2words import num2words
+import # ...
 
 def clean_dataset(df):
     # ...
@@ -435,8 +434,104 @@ def clean_dataset(df):
         if pd.isnull(title) or '###ERROR###' in str(title):
             return "Title Not Available"
 \end{lstlisting}
-Ritornando "Title Not Available" procederemo ad eliminare l'istanza in un secondo momento, in quanto non contribuisce piu' alla risoluzione del problema.\\
+
+La seconda problematica (caratteri speciali) è ancor piu' facile da risolvere, rimuovendo semplicemente i caratteri speciali utilizzando delle \textbf{Regular Expression}.
+\begin{lstlisting}[language=Python]
+import # ...
+
+def clean_dataset(df):
+    # ...
+    def clean_title(title):
+        # ...
+        title = re.sub(r'[^\w\s]', '', str(title))
+        title = re.sub(r'\s+', ' ', title).strip()
+\end{lstlisting}
+La prima REGEX serve a eliminare i caratteri speciali, la seconda elimina gli spazi quando ce ne sono più di uno.\\
 \\
-La seconda problematica invece può essere risolta solo tramite eliminazione manuale, in quanto se si fa un controllo automatico, il dato erroneo potrebbe passare oltre questo controllo se risulta rispettare tutte le condizioni.
+Successivamente viene eseguita l'eliminazione delle istanze corrotte riconosciute fino a questo punto.
+\begin{lstlisting}[language=Python]
+import # ...
+
+def clean_dataset(df):
+    # ...
+    def clean_title(title):
+        # ...
+        
+    df = df[df['title'] != "Title Not Available"]
+\end{lstlisting}
+\newpage
+
+La terza problematica (titolo non normalizzato) si può risolvere seguendo delle regole standard per la normalizzazione del testo. In questo caso sono state praticate:
+\begin{itemize}
+        \item Contraction Expansion;
+        \item Tokenizzazione;
+        \item Conversione dei numeri (in cifre) in parole;
+        \item Lemmatizzazione;
+        \item Trasformazione in Minuscolo;
+        \item Stopword Removal.
+\end{itemize}
+\begin{lstlisting}[language=Python]
+import # ...
+
+def clean_dataset(df):
+    # ...
+    def normalize_title(title):
+        if not isinstance(title, str):
+            print(f"Titolo non valido: {title}")
+            return None
+
+        try:
+            contractions = {
+                "I'm": "I am", "you're": "you are", "he's": "he is",
+                "she's": "she is", "it's": "it is", "we're": "we are",
+                "they're": "they are", "can't": "cannot",
+                "won't": "will not", "don't": "do not",
+                "didn't": "did not","isn't": "is not",
+            }
+            for contraction, full_form in contractions.items():
+                title=re.sub(r'\b'+contraction+r'\b',full_form,title)
+
+            tokens = word_tokenize(title)
+
+            tokens = [
+                num2words(word) if word.isdigit() else word
+                for word in tokens
+            ]
+
+            tokens=[lemmatizer.lemmatize(word) for word in tokens if word]
+
+            tokens = [word.lower() for word in tokens]
+
+            tokens=[word for word in tokens if word not in stop_words]
+
+            normalized_title = ' '.join(tokens)
+
+            return normalized_title if normalized_title.strip() else None
+        except Exception as e:
+            print(f"Errore durante la normalizzazione del titolo: {title}. Errore: {e}")
+            return None
+\end{lstlisting}
+Anche qui si controlla se il titolo risultante è vuoto, e nel caso si elimina la riga corrispondente.
+\\
+\\
+La quarta problematica (presenza di links in \texttt{\color{red}{description}}) è risolvibile anche essa usando una semplice Regular Expression.
+\\
+Essendo il link, inoltre, l'unico elemento del campo effettivamente rilevante, possiamo procedere ad estrarre solo esso dal valore attuale.
+\begin{lstlisting}[language=Python]
+import # ...
+
+def clean_dataset(df):
+    # ...
+    def process_description(description):
+        link = re.search(r'http[s]?://\S+', description)
+        return link.group() if link else "No link available"
+\end{lstlisting}
+\newpage
+La quinta problematica (valori corrotti) invece può essere risolta solo manualmente, non esiste un sistema automatico funzionante al 100\% in quanto i valori corrotti sono di natura totalmente casuale.\\
+Andiamo dunque a eliminare istanze del nuovo dataset risultato dalle precedenti operazioni che contengono valori corrotti. Dall'osservazione fatta, risultano essere i seguenti (elencati per titolo):
+\begin{itemize}
+    \item "pqjjlbwwsupivcnmfi9i2m8jtdw"
+    \item "son0mmgo6vr2rbo6ixhnjnvvem2r8qc"
+\end{itemize}
 
 \end{document}
