@@ -662,4 +662,166 @@ Il dataset, dopo una nemmeno troppo accurata analisi, risulta essere ben equilib
 \caption{Equilibrio delle istanze del dataset}
 \end{figure}
 
+\newpage
+
+\begingroup%
+\makeatletter%
+\let\clearpage\relax% Stop LaTeX from going to a new page; and
+\vspace*{\fill}%
+\vspace*{\dimexpr-50\p@-\baselineskip}% Remove the initial (default) 50pt gap (plus 1 line)
+\chapter{Data Modeling}
+\vspace*{\fill}%
+\endgroup
+\newpage
+
+\section{Introduzione al Modellamento}
+In questa fase costruiremo il nostro modello, seguendo due fasi ben precise:
+\begin{itemize}
+    \item Scelta di tecniche e algoritmi;
+    \item Addestramento del Machine Learning Model.
+\end{itemize}
+
+\section{Tecnica}
+In questa fase, analizziamo il problema in esame per capire con quale tecnica creare il nostro Modello.\\
+Essendo un problema in cui abbiamo bisogno di etichettare le nuove istanze che verranno date al Modello, e i dati stessi di traning sono anche essi etichettati, possiamo dedurre che questo problema è un problema di \textbf{Classificazione}, più nello specifico un problema di classificazione binaria, in quanto le etichette possono assumere solo due valori: "scam" o "legit".
+
+\section{Algoritmi}
+Per un problema di classificazione abbiamo a disposizione un gran numero su cui fare affidamento.\\
+Tra di essi ne scegliamo due, in quanto vogliamo comparare quali dei due potrebbe darci migliori performance in questo ambiente:
+\begin{itemize}
+    \item \texttt{\textbf{Naïve Bayes}};
+    \item \texttt{\textbf{Random Forest}}.
+\end{itemize}
+Ora, andiamo ad analizzare perchè dovremmo preferire uno dei due, all'altro.
+
+\subsection{Naïve Bayes}
+L'algoritmo Naïve Bayes è uno dei classificatori più semplici e veloci, sia in fase di addestramento che di utilizzo, grazie alla sua efficienza computazionale e al presupposto di indipendenza tra le feature. \\
+Questo lo rende particolarmente adatto per problemi di classificazione con dataset piccoli o medi, dove la velocità e l'usabilità sono prioritarie. \\ 
+Tuttavia, un limite significativo di Naïve Bayes è la sua assunzione di indipendenza tra le feature, che raramente è valida per dati reali. Nel contesto del problema affrontato da OverseerAI, questa limitazione è particolarmente rilevante: le feature \texttt{\color{red}{title}}, \texttt{\color{red}{description}} e \texttt{\color{red}{link\_desc}} mostrano correlazioni evidenti e devono essere analizzate in relazione l'una con l'altra per produrre risultati significativi. \\
+Di conseguenza, pur essendo un algoritmo rapido ed efficiente, Naïve Bayes potrebbe non essere la scelta ottimale per problemi in cui le dipendenze tra le feature giocano un ruolo cruciale nella qualità della classificazione.
+
+\subsection{Random Forest}
+L'algoritmo Random Forest che è stato scelto per affrontare il problema di classificazione come algoritmo principale grazie alla sua capacità di gestire dataset con feature correlate.\\
+Esso costruisce un insieme di alberi decisionali e combina le loro previsioni, migliorando così la robustezza e riducendo il rischio di overfitting rispetto a un singolo albero decisionale. \\
+Grazie all'uso di più alberi decisionali, esso riesce anche a trovare pattern nascosti, qualità che nell'attuale problema in analisi ha grande rilevanza e utilità.\\
+Queste caratteristiche hanno determinato come scelta definitiva del suddetto algoritmo per la risoluzione del problema.\\
+Anche se esso richiede più risorse computazionali rispetto a algoritmi più semplici, come Naïve Bayes, il bilanciamento tra accuratezza e capacità di generalizzazione (utile ai pattern nascosti) lo rende una scelta ideale per il problema in esame.
+
+\section{Addestramento}
+Andiamo ora ad addestrare il nostro modello, usando l'algoritmo Random Forest.\\
+Per praticità di utilizzo, e per fornire una demo riproducibile, il modello addestrato verrà salvato in formato .pkl, per mantenere tutto il settaggio del modello eseguito in fase di training.\\
+Come primo step, scriviamo il codice che processerà il dataset e allenerà il nostro modello:
+\begin{lstlisting}[language=Python]
+import pandas as pd
+from sklearn.model_selection import KFold
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, precision_score, recall_score
+import joblib
+
+def create_pipeline():
+    preprocessor = ColumnTransformer(
+        transformers=[
+        ('title_tfidf', TfidfVectorizer(max_features=5000), 'title'),
+        ('description_tfidf', TfidfVectorizer(max_features=5000), 'description'),
+        ('link_desc_tfidf', TfidfVectorizer(max_features=5000), 'link_desc')
+        ]
+    )
+    
+    pipeline = Pipeline(steps=[
+        ('preprocessor', preprocessor),
+        ('classifier', RandomForestClassifier(n_estimators=100, random_state=42, class_weight="balanced"))
+    ])
+    
+    return pipeline
+\end{lstlisting}
+Prima di iniziare ad addestrare il modello, abbiamo bisogno di processare i dati per renderli "capibili" al nostro classificatore, se ne occuperà il \texttt{preprocessor}.\\
+In \texttt{ColumnTransformer()} trasformiamo le nostre colonne (features) in vettori numerici, utilizzando la funzione \textbf{TF-IDF} (Term Frequency-Inverse Document Frequency), che quantifica l'importanza di una parola all'interno del dataset. Il dizionario di importanza nella nostra soluzione avrà un valore arbitrario massimo di 5000 elementi.
+\newpage
+In \texttt{pipeline()} utilizziamo la funzione Pipeline per creare una "catena di montaggio", che eseguirà in ordine questi step:
+\begin{enumerate}
+    \item Esecuzione del \texttt{preprocessor};
+    \item Esecuzione del classificatore \texttt{RandomForestClassifier()} con 100 alberi differenti, seed randomico (con cui si possono replicare i risultati) = 42 e un compensamento automatico per lo squilibrio delle classi nel problema di esame, dando un peso maggiore alle classi meno rappresentate.
+\end{enumerate}
+\hfill \break
+La successiva fase utilizzerà ciò che abbiamo creato per allenare il modello, e validerà ogni istanza di allenamento eseguita.
+\begin{lstlisting}[language=Python]
+import # ...
+
+def train_and_evaluate(df):
+    X = df[['title', 'description', 'link_desc']]
+    y = df['label']
+
+    kf = KFold(n_splits=10, shuffle=True, random_state=42)
+    fold_num = 1
+
+    accuracy_scores = []
+    precision_scores = []
+    recall_scores = []
+    
+    for train_index, test_index in kf.split(X):
+        X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+        y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+
+        pipeline = create_pipeline()
+        pipeline.fit(X_train, y_train)
+        y_pred = pipeline.predict(X_test)
+
+        acc = accuracy_score(y_test, y_pred)
+        prec = precision_score(y_test, y_pred, average='macro')
+        rec = recall_score(y_test, y_pred, average='macro')
+        print(f"Fold {fold_num} - Accuracy: {acc:.3f}, Precision: {prec:.3f}, Recall: {rec:.3f}")
+        accuracy_scores.append(acc)
+        precision_scores.append(prec)
+        recall_scores.append(rec)
+
+        fold_num += 1
+
+    joblib.dump(pipeline, 'random_forest_model.pkl')
+    print("Modello salvato come 'random_forest_model.pkl'")
+\end{lstlisting}
+I dati che vengono usati per l'allenamento vengono presi dal dataset e divisi in due categorie: una parte va al training, l'altra va alla validazione della fase di training.\\
+Per questo processo usiamo il metodo di convalida \textbf{K-Fold N-times cross validation}.\\
+Nel nostro caso \texttt{N-times = 10}, e la funzione mescola le istanze del dataset prima di dividerle in gruppi per evitare dipendenze sequenziali dei dati (e viene fornito un seed per replicare l'istanza di training).\\
+Ad ogni iterazione del ciclo \texttt{for} viene eseguita la singola iterazione del \texttt{K-fold}.\\
+Sapendo che \textbf{X} sono le istanze con valori title, description e link\_desc, e \textbf{y} sono le istanze con solo label come valore, all'interno del ciclo vengono assegnati valori di training e test per X e valori di training e test per y, utilizzando lo split attuale (creato usando \texttt{kf.split(X)}).\\
+Si procede, dopo questa suddivisione, a creare la pipeline di preprocessamento vista in precedenza, e con \texttt{pipeline.fit()} allena il modello.\\
+\texttt{y\_pred = pipeline.predict(X\_text)} cerca invece di predirre ogni valore di X\_text.\\
+Successivamente, la funzione calcola le metriche di valutazione per:
+\[
+\text{Accuracy} = \frac{\text{TP} + \text{TN}}{\text{TP} + \text{TN} + \text{FP} + \text{FN}}
+\]
+\[
+\text{Precision} = \frac{\text{TP}}{\text{TP} + \text{FP}}
+\]
+\[
+\text{Recall} = \frac{\text{TP}}{\text{TP} + \text{FN}}
+\]\\
+Dove si usano i valori dei True Positives (TP), True Negatives (TN), False Positives (FP) e False Negatives (FN).\\
+L'intenzione è massimizzare codesti valori.\\
+Infine, dopo il completamento dell'esecuzione del ciclo \texttt{for}, utilizziamo la funzione \texttt{joblib.dump()} per salvare il traning e la validazione fatti come modello allenato.\\
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=14cm]{table.png}
+\caption{Valori per-fold di Accuracy, Precision e Recall}
+\end{figure}
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{accuracy.png}
+\caption{Grafico Accuracy}
+\end{figure}
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{precision.png}
+\caption{Grafico Precision}
+\end{figure}
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{recall.png}
+\caption{Grafico Recall}
+\end{figure}
+
 \end{document}
