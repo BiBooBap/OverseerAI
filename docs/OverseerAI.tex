@@ -64,7 +64,8 @@
     \includegraphics[width=0.40\textwidth]{images/logo_overseerai.png}
     
     \textbf{\Huge OverseerAI} \\
-    \vspace{1cm} % Adjust vertical space
+    \href{https://github.com/BiBooBap/OverseerAI}{\small https://github.com/BiBooBap/OverseerAI}\\
+    \vspace{0.5cm} % Adjust vertical space
     \large Laurea di Informatica L-31 all'Università di Salerno \\
     \large Corso di Fondamenti di Intelligenza Artificiale \\
     \vspace{0.5cm} % Adjust vertical space
@@ -72,7 +73,7 @@
     \vspace{3cm}
     \textbf{Created by: }{\large Antonio Maiorano} \\
     \vspace{0.5cm}
-    \textbf{Supervised by: }{\large Prof. Fabio Palomba}
+    \textbf{Supervised by: }{\large Prof. Fabio Palomba}\\
 }
 \date{}
 
@@ -803,25 +804,180 @@ Dove si usano i valori dei True Positives (TP), True Negatives (TN), False Posit
 L'intenzione è massimizzare codesti valori.\\
 Infine, dopo il completamento dell'esecuzione del ciclo \texttt{for}, utilizziamo la funzione \texttt{joblib.dump()} per salvare il traning e la validazione fatti come modello allenato.\\
 
+\vspace*{\fill}
 \begin{figure}[h]
 \centering
 \includegraphics[width=14cm]{table.png}
 \caption{Valori per-fold di Accuracy, Precision e Recall}
 \end{figure}
+\vspace*{\fill}
+\newpage
+\vspace*{\fill}
 \begin{figure}[h]
 \centering
 \includegraphics[width=\textwidth]{accuracy.png}
 \caption{Grafico Accuracy}
 \end{figure}
+\vspace*{\fill}
+\newpage
+\vspace*{\fill}
 \begin{figure}[h]
 \centering
 \includegraphics[width=\textwidth]{precision.png}
 \caption{Grafico Precision}
 \end{figure}
+\vspace*{\fill}
+\newpage
+\vspace*{\fill}
 \begin{figure}[h]
 \centering
 \includegraphics[width=\textwidth]{recall.png}
 \caption{Grafico Recall}
 \end{figure}
+\vspace*{\fill}
+\newpage
+
+\begingroup%
+\makeatletter%
+\let\clearpage\relax% Stop LaTeX from going to a new page; and
+\vspace*{\fill}%
+\vspace*{\dimexpr-50\p@-\baselineskip}% Remove the initial (default) 50pt gap (plus 1 line)
+\chapter{Evaluation}
+\vspace*{\fill}%
+\endgroup
+\newpage
+
+\section{Valutazione tramite Confusion Matrix}
+Durante l'esecuzione della fase di Training il modello è stato adattato ulteriormente con l'aggiunta del calcolo della \textbf{Matrice di Confusione}, così da poter meglio valutare i risultati.\\
+Le Matrici risultanti sono:
+\begin{itemize}
+    \item Una per iterazione (per fold);
+\end{itemize}
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{confusion_matrix_perfold.png}
+\end{figure}
+\begin{itemize}
+    \item Una finale di valutazione globale.
+\end{itemize}
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{confusion_matrix_final.png}
+\end{figure}
+Dalle Matrici ci risulta essere evidente che il modello non è perfetto, sicuramente è migliorabile, ma è anche decisamente nella norma e utilizzabile.\\
+Nella fase di \textbf{Deployment}, testeremo tramite uso reale del modello la sua usabilità.
+\newpage
+\section{Valutazione post-Deployment}
+Andremo qui ad analizzare la problematica riscontrata nell'istanza:
+\subsection{Istanza legit con link}
+Da un'analisi più approfondita, risulta essere un problema già osservato nella Matrice di Confusione vista in precedenza: vi sono un numero cospicuo di Falsi Negativi (parlando proporzionalmente al dataset).\\
+Questo è un esempio di Falso Negativo.\\
+Provando diverse combinazioni, si scopre che l'istanza viene erroneamente classificata per via di un Bias creatosi durante il training del modello per la feature "link\_desc".\\
+Infatti, se andiamo a provare la stessa istanza usata in questo test, ma togliendo il link, verrà classificata nel modo giusto.\\
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{deploy_legit_link2.png}
+\end{figure}
+\hfill \break
+Questo problema potrebbe essere risolto dando un peso minore in fase di allenamento alla feature "link\_desc", rispetto alle altre.\\
+Questa soluzione è stata realizzata, ma non è stata completata per mancanza di tempo.
+\newpage
+
+\begingroup%
+\makeatletter%
+\let\clearpage\relax% Stop LaTeX from going to a new page; and
+\vspace*{\fill}%
+\vspace*{\dimexpr-50\p@-\baselineskip}% Remove the initial (default) 50pt gap (plus 1 line)
+\chapter{Deployment}
+\vspace*{\fill}%
+\endgroup
+\newpage
+
+\section{Realizzazione Interfaccia}
+In questa fase, verrà semplicemente realizzata un'interfaccia tramite terminale per usare e provare il Modello.
+\begin{lstlisting}[language=Python]
+import joblib
+import pandas as pd
+import re
+import nltk
+from nltk # ...
+def normalize_text(text):
+    # Funzione di normalizzazione come visto nel Data Cleaning
+def extract_link(text):
+    # Funzione di estrazione come visto nel Feature Selection
+def load_model(filepath):
+    return joblib.load(filepath)
+
+def predict_title(model, title, description):
+    normalized_title = normalize_text(title)
+    desc_text_part, desc_link = extract_link(description)
+    normalized_description = normalize_text(desc_text_part)
+    normalized_link_desc = normalize_text(desc_link)
+    input_data = pd.DataFrame([{
+        'title': normalized_title,
+        'description': normalized_description,
+        'link_desc': normalized_link_desc
+    }])
+    prediction = model.predict(input_data)
+    return prediction[0]
+    
+if __name__ == "__main__":
+    model_path = "../3_data_modeling/random_forest_model.pkl"
+    model = load_model(model_path)
+    print("Inserisci il titolo:")
+    title = input()
+    print("Inserisci la descrizione:")
+    description = input()
+    result = predict_title(model, title, description)
+    print(f"Risultato della classificazione: {result.upper()}")
+\end{lstlisting}
+\section{Test di Usabilità}
+Per il nostro test proveremo 4 istanze separate (basate sulla conoscenza del dominio):
+\begin{itemize}
+    \item Istanza legit senza link;
+    \item Istanza legit con link;
+    \item Istanza scam senza link;
+    \item Istanza scam con link.
+\end{itemize}
+\subsection{Istanza legit senza link}
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{deploy_legit_nolink.png}
+\end{figure}
+L'istanza viene riconosciuta nel modo giusto, quindi passa questo test.
+\subsection{Istanza legit con link}
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{deploy_legit_link.png}
+\end{figure}
+L'istanza viene riconosciuta nel modo sbagliato, quindi non passa questo test.\\
+Nella fase di Evaluation verrà inserita un'analisi su questa casistica.
+\newpage
+\subsection{Istanza scam senza link}
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{deploy_scam_nolink.png}
+\end{figure}
+L'istanza viene riconosciuta nel modo giusto, quindi passa questo test.
+\subsection{Istanza scam con link}
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{deploy_scam_link.png}
+\end{figure}
+L'istanza viene riconosciuta nel modo giusto, quindi passa questo test.
+\newpage
+
+\begingroup%
+\makeatletter%
+\let\clearpage\relax% Stop LaTeX from going to a new page; and
+\vspace*{\fill}%
+\vspace*{\dimexpr-50\p@-\baselineskip}% Remove the initial (default) 50pt gap (plus 1 line)
+\chapter{Conclusioni}
+\vspace*{\fill}%
+\endgroup
+\newpage
+
+\section{Conclusioni finali}
+La realizzazione di questo progetto è stata divertente e molto formativa, nonostante il corso fosse di "Fondamenti" sento di aver superato lo scopo del corso per il bene della mia formazione, e spero che questo progetto possa invogliare altri (possibili) lettori a fare lo stesso.
 
 \end{document}

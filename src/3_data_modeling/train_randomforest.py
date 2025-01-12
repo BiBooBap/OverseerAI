@@ -4,7 +4,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, confusion_matrix
 import joblib
 import matplotlib.pyplot as plt
 
@@ -38,6 +38,10 @@ def train_and_evaluate(df):
     accuracy_scores = []
     precision_scores = []
     recall_scores = []
+    confusion_matrices = []
+
+    y_true_all = []
+    y_pred_all = []
     
     for train_index, test_index in kf.split(X):
         X_train, X_test = X.iloc[train_index], X.iloc[test_index]
@@ -46,6 +50,12 @@ def train_and_evaluate(df):
         pipeline = create_pipeline()
         pipeline.fit(X_train, y_train)
         y_pred = pipeline.predict(X_test)
+
+        cm = confusion_matrix(y_test, y_pred)
+        confusion_matrices.append(cm)
+
+        y_true_all.extend(y_test)
+        y_pred_all.extend(y_pred)
 
         acc = accuracy_score(y_test, y_pred)
         prec = precision_score(y_test, y_pred, average='macro')
@@ -58,6 +68,35 @@ def train_and_evaluate(df):
         recall_scores.append(rec)
 
         fold_num += 1
+
+    fig_cm_folds, ax_cm_folds = plt.subplots(figsize=(8, 4))
+    ax_cm_folds.axis('off')
+    table_data_cm = []
+    for i, cm in enumerate(confusion_matrices, start=1):
+        cm_list = cm.tolist()
+        flatten = [str(item) for row in cm_list for item in row]
+        table_data_cm.append([f"Fold {i}"] + flatten)
+    num_values = len(table_data_cm[0]) - 1  # sottraiamo "Fold"
+    columns_cm = ["Fold", "TN", "FP", "FN", "TP"]
+
+    tbl_cm = ax_cm_folds.table(cellText=table_data_cm, colLabels=columns_cm, loc='center')
+    tbl_cm.auto_set_font_size(False)
+    tbl_cm.set_fontsize(8)
+    plt.tight_layout()
+    plt.show()
+
+    final_cm = confusion_matrix(y_true_all, y_pred_all)
+
+    fig_final_cm, ax_final_cm = plt.subplots(figsize=(8, 2))
+    ax_final_cm.axis('off')
+    final_cm_list = final_cm.tolist()
+    table_data_final_cm = [str(item) for row in final_cm_list for item in row]
+    columns_final_cm = ["TN", "FP", "FN", "TP"]
+    tbl_final_cm = ax_final_cm.table(cellText=[table_data_final_cm], colLabels=columns_final_cm, loc='center')
+    tbl_final_cm.auto_set_font_size(False)
+    tbl_final_cm.set_fontsize(10)
+    plt.tight_layout()
+    plt.show()
 
     # Salvataggio del modello
     joblib.dump(pipeline, 'random_forest_model.pkl')
