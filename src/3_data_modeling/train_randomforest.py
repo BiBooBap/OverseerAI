@@ -4,7 +4,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, precision_score, recall_score, confusion_matrix
+from sklearn.metrics import accuracy_score, precision_score, recall_score, confusion_matrix, f1_score
 import joblib
 import matplotlib.pyplot as plt
 
@@ -38,6 +38,7 @@ def train_and_evaluate(df):
     accuracy_scores = []
     precision_scores = []
     recall_scores = []
+    f1_scores = []
     confusion_matrices = []
 
     y_true_all = []
@@ -60,12 +61,14 @@ def train_and_evaluate(df):
         acc = accuracy_score(y_test, y_pred)
         prec = precision_score(y_test, y_pred, average='macro')
         rec = recall_score(y_test, y_pred, average='macro')
+        f1 = f1_score(y_test, y_pred, average='macro')
 
-        print(f"Fold {fold_num} - Accuracy: {acc:.3f}, Precision: {prec:.3f}, Recall: {rec:.3f}")
+        print(f"Fold {fold_num} - Accuracy: {acc:.3f}, Precision: {prec:.3f}, Recall: {rec:.3f}, F1-Score: {f1:.3f}")
 
         accuracy_scores.append(acc)
         precision_scores.append(prec)
         recall_scores.append(rec)
+        f1_scores.append(f1)
 
         fold_num += 1
 
@@ -108,18 +111,19 @@ def train_and_evaluate(df):
     fig, ax = plt.subplots(figsize=(6, 3))
     ax.axis('tight')
     ax.axis('off')
-    columns = ["Fold", "Accuracy", "Precision", "Recall"]
+    columns = ["Fold", "Accuracy", "Precision", "Recall", "F1"]
     table_data = []
-    for i in range(len(folds)):
+    for i in range(len(accuracy_scores)):
         table_data.append([
-            folds[i],
+            i + 1,
             f"{accuracy_scores[i]:.3f}",
             f"{precision_scores[i]:.3f}",
-            f"{recall_scores[i]:.3f}"
+            f"{recall_scores[i]:.3f}",
+            f"{f1_scores[i]:.3f}"
         ])
-    table = ax.table(cellText=table_data, colLabels=columns, loc='center')
-    table.auto_set_font_size(False)
-    table.set_fontsize(10)
+    tbl = ax.table(cellText=table_data, colLabels=columns, loc='center')
+    tbl.auto_set_font_size(False)
+    tbl.set_fontsize(10)
     plt.tight_layout()
     plt.show()
 
@@ -153,6 +157,38 @@ def train_and_evaluate(df):
     plt.ylabel('Recall')
     plt.xticks(folds)
     plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+    # F1-Score
+    plt.figure(figsize=(6, 4))
+    plt.plot(folds, f1_scores, marker='o', color='purple')
+    plt.title('F1-Score per fold')
+    plt.xlabel('Fold')
+    plt.ylabel('F1-Score')
+    plt.xticks(folds)
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+    # Tabella globale finale con medie
+    global_accuracy = sum(accuracy_scores) / len(accuracy_scores)
+    global_precision = sum(precision_scores) / len(precision_scores)
+    global_recall = sum(recall_scores) / len(recall_scores)
+    global_f1 = sum(f1_scores) / len(f1_scores)
+
+    fig_global, ax_global = plt.subplots(figsize=(4, 2))
+    ax_global.axis('off')
+    columns_global = ["Accuracy", "Precision", "Recall", "F1"]
+    table_data_global = [[
+        f"{global_accuracy:.3f}",
+        f"{global_precision:.3f}",
+        f"{global_recall:.3f}",
+        f"{global_f1:.3f}"
+    ]]
+    tbl_global = ax_global.table(cellText=table_data_global, colLabels=columns_global, loc='center')
+    tbl_global.auto_set_font_size(False)
+    tbl_global.set_fontsize(10)
     plt.tight_layout()
     plt.show()
 

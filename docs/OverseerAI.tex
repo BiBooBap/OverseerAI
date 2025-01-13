@@ -719,7 +719,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 import joblib
 
 def create_pipeline():
@@ -761,6 +761,11 @@ def train_and_evaluate(df):
     accuracy_scores = []
     precision_scores = []
     recall_scores = []
+    f1_scores = []
+    confusion_matrices = []
+
+    y_true_all = []
+    y_pred_all = []
     
     for train_index, test_index in kf.split(X):
         X_train, X_test = X.iloc[train_index], X.iloc[test_index]
@@ -770,22 +775,34 @@ def train_and_evaluate(df):
         pipeline.fit(X_train, y_train)
         y_pred = pipeline.predict(X_test)
 
+        cm = confusion_matrix(y_test, y_pred)
+        confusion_matrices.append(cm)
+
+        y_true_all.extend(y_test)
+        y_pred_all.extend(y_pred)
+
         acc = accuracy_score(y_test, y_pred)
         prec = precision_score(y_test, y_pred, average='macro')
         rec = recall_score(y_test, y_pred, average='macro')
-        print(f"Fold {fold_num} - Accuracy: {acc:.3f}, Precision: {prec:.3f}, Recall: {rec:.3f}")
+        f1 = f1_score(y_test, y_pred, average='macro')
+
+        print(f"Fold {fold_num} - Accuracy: {acc:.3f}, Precision: {prec:.3f}, Recall: {rec:.3f}, F1-Score: {f1:.3f}")
+
         accuracy_scores.append(acc)
         precision_scores.append(prec)
         recall_scores.append(rec)
+        f1_scores.append(f1)
 
         fold_num += 1
+
+    # ...
 
     joblib.dump(pipeline, 'random_forest_model.pkl')
     print("Modello salvato come 'random_forest_model.pkl'")
 \end{lstlisting}
 I dati che vengono usati per l'allenamento vengono presi dal dataset e divisi in due categorie: una parte va al training, l'altra va alla validazione della fase di training.\\
 Per questo processo usiamo il metodo di convalida \textbf{K-Fold N-times cross validation}.\\
-Nel nostro caso \texttt{N-times = 10}, e la funzione mescola le istanze del dataset prima di dividerle in gruppi per evitare dipendenze sequenziali dei dati (e viene fornito un seed per replicare l'istanza di training).\\
+Nel nostro caso \texttt{N-times = 10}, e la funzione mescola le istanze del dataset prima di dividerle in gruppi per evitare dipendenze sequenziali dei dati (e viene fornito un seed per replicare l'istanza di training). Poi, per ogni fold, usa il 90\% del fold per il training, e il restante 10\% per la validazione.\\
 Ad ogni iterazione del ciclo \texttt{for} viene eseguita la singola iterazione del \texttt{K-fold}.\\
 Sapendo che \textbf{X} sono le istanze con valori title, description e link\_desc, e \textbf{y} sono le istanze con solo label come valore, all'interno del ciclo vengono assegnati valori di training e test per X e valori di training e test per y, utilizzando lo split attuale (creato usando \texttt{kf.split(X)}).\\
 Si procede, dopo questa suddivisione, a creare la pipeline di preprocessamento vista in precedenza, e con \texttt{pipeline.fit()} allena il modello.\\
@@ -799,42 +816,45 @@ Successivamente, la funzione calcola le metriche di valutazione per:
 \]
 \[
 \text{Recall} = \frac{\text{TP}}{\text{TP} + \text{FN}}
-\]\\
+\]
+\[
+F1 = 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}
+\]
+\\
 Dove si usano i valori dei True Positives (TP), True Negatives (TN), False Positives (FP) e False Negatives (FN).\\
 L'intenzione è massimizzare codesti valori.\\
 Infine, dopo il completamento dell'esecuzione del ciclo \texttt{for}, utilizziamo la funzione \texttt{joblib.dump()} per salvare il traning e la validazione fatti come modello allenato.\\
+\newpage
 
 \vspace*{\fill}
 \begin{figure}[h]
 \centering
-\includegraphics[width=14cm]{table.png}
-\caption{Valori per-fold di Accuracy, Precision e Recall}
-\end{figure}
-\vspace*{\fill}
-\newpage
-\vspace*{\fill}
-\begin{figure}[h]
-\centering
-\includegraphics[width=\textwidth]{accuracy.png}
+\includegraphics[width=0.8\textwidth]{accuracy.png}
 \caption{Grafico Accuracy}
 \end{figure}
-\vspace*{\fill}
-\newpage
-\vspace*{\fill}
+\hfill \break
 \begin{figure}[h]
 \centering
-\includegraphics[width=\textwidth]{precision.png}
+\includegraphics[width=0.8\textwidth]{precision.png}
 \caption{Grafico Precision}
 \end{figure}
 \vspace*{\fill}
 \newpage
+
 \vspace*{\fill}
 \begin{figure}[h]
 \centering
-\includegraphics[width=\textwidth]{recall.png}
+\includegraphics[width=0.8\textwidth]{recall.png}
 \caption{Grafico Recall}
 \end{figure}
+\hfill \break
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.7\textwidth]{f1score.png}
+\caption{Grafico F1-Score}
+\end{figure}
 \vspace*{\fill}
+\hfill \break
 \newpage
 
 \begingroup%
@@ -847,7 +867,8 @@ Infine, dopo il completamento dell'esecuzione del ciclo \texttt{for}, utilizziam
 \endgroup
 \newpage
 
-\section{Valutazione tramite Confusion Matrix}
+\section{Valutazione}
+\subsubsection{Confusion Matrix}
 Durante l'esecuzione della fase di Training il modello è stato adattato ulteriormente con l'aggiunta del calcolo della \textbf{Matrice di Confusione}, così da poter meglio valutare i risultati.\\
 Le Matrici risultanti sono:
 \begin{itemize}
@@ -866,6 +887,25 @@ Le Matrici risultanti sono:
 \end{figure}
 Dalle Matrici ci risulta essere evidente che il modello non è perfetto, sicuramente è migliorabile, ma è anche decisamente nella norma e utilizzabile.\\
 Nella fase di \textbf{Deployment}, testeremo tramite uso reale del modello la sua usabilità.
+\newpage
+\subsubsection{Metriche Accuracy, Precision, Recall e F1-Score}
+Valori per-fold:
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{table.png}
+\end{figure}
+\hfill \break
+Valori globali medi:
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.6\textwidth]{table_globalaverage.png}
+\end{figure}
+\hfill \break
+Come possiamo notare i valori delle metriche di valutazione risultano essere eccezionali.\\
+Al secondo Fold addirittura uno score di 1 su tutte le metriche!\\
+Ovviamente ci affideremo solo in parte ad esse, ma il loro valore \(> 0.8\) è decisamente un ottimo risultato!\\
+Un dettaglio che possiamo notare sia dalla Confusion Matrix che dalle metriche di valutazione è che nel Fold N.6 il training subisce una perdita enorme, con ben 8 False Negatives.\\
+Un aspetto su cui si potrebbe ritornare per migliorare il modello potrebbe essere anche questo.
 \newpage
 \section{Valutazione post-Deployment}
 Andremo qui ad analizzare la problematica riscontrata nell'istanza:
